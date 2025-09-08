@@ -1,0 +1,6 @@
+django>=5.0,<6
+djangorestframework>=3.16,<3.17
+django-cors-headers>=4.0,<5
+gunicorn>=23,<24
+pydantic>=2.7,<3
+requests>=2.32,<3
