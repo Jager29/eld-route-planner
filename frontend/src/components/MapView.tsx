@@ -12,7 +12,6 @@ export default function MapView({ geometry }: Props) {
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
-    // 1) Estilo público sin key para validar render
     const styleUrl =
       import.meta.env.VITE_MAPTILER_KEY
         ? `https://api.maptiler.com/maps/streets/style.json?key=${import.meta.env.VITE_MAPTILER_KEY}`
@@ -28,9 +27,8 @@ export default function MapView({ geometry }: Props) {
     });
     map.addControl(new maplibregl.NavigationControl(), "top-right");
 
-    // Debug útil
-    map.on("load", () => console.log("✅ Map style loaded"));
-    map.on("error", (e) => console.error("🛑 Map error:", e.error));
+    map.on("load", () => console.log(" Map style loaded"));
+    map.on("error", (e) => console.error(" Map error:", e.error));
 
     mapRef.current = map;
     return () => {

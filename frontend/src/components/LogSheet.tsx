@@ -15,14 +15,13 @@ function t2x(iso: string) {
   const d = new Date(iso);
   const h = d.getHours();
   const m = d.getMinutes();
-  return ((h + m / 60) / 24) * 800; // ancho 800
+  return ((h + m / 60) / 24) * 800; 
 }
 function yFor(status: typeof ROWS[number]) {
   return 20 + ROWS.indexOf(status) * 50;
 }
 
 export default function LogSheet({ logsByDay }: Props) {
-  // 1) Siempre llama hooks (usa {} si viene undefined)
   const days = useMemo(() => Object.keys(logsByDay ?? {}).sort(), [logsByDay]);
 
   const firstWithData = useMemo(() => {
@@ -34,12 +33,10 @@ export default function LogSheet({ logsByDay }: Props) {
 
   const [dayKey, setDayKey] = useState<string | null>(firstWithData);
 
-  // Si cambia logsByDay (nuevo request), re-selecciona día
   useEffect(() => {
     setDayKey(firstWithData);
   }, [firstWithData]);
 
-  // 2) A partir de aquí puedes cortar el render
   if (!logsByDay || !dayKey) return null;
 
   const day = logsByDay[dayKey];
@@ -78,7 +75,7 @@ export default function LogSheet({ logsByDay }: Props) {
             const x1 = t2x(s.start);
             const x2 = t2x(s.end);
             const y = yFor(s.status);
-            const x2Adj = x2 > x1 ? x2 : x1 + 3; // mínimo 3px para que se vea
+            const x2Adj = x2 > x1 ? x2 : x1 + 3; 
             return <line key={idx} x1={x1} y1={y} x2={x2Adj} y2={y} stroke="black" strokeWidth={3} />;
           })}
         </svg>
