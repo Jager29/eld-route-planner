@@ -2,6 +2,7 @@ import type { Stop } from "../types";
 
 type Props = {
   stops?: Stop[];
+  activeIndex?: number;        // -1 si ninguno
   onFocus?: (index: number) => void;
 };
 
@@ -16,7 +17,7 @@ function colorFor(t: Stop["type"]) {
   }
 }
 
-export default function StopsList({ stops = [], onFocus }: Props) {
+export default function StopsList({ stops = [], activeIndex = -1, onFocus }: Props) {
   if (!stops.length) return null;
 
   return (
@@ -24,10 +25,15 @@ export default function StopsList({ stops = [], onFocus }: Props) {
       <div className="font-semibold mb-2">Stops & Rests</div>
       <ol className="space-y-2">
         {stops.map((s, i) => (
-          <li key={i} className="flex items-center justify-between text-sm">
+          <li
+            key={i}
+            className={`flex items-center justify-between text-sm rounded-lg ${
+              i === activeIndex ? "bg-gray-100" : ""
+            }`}
+          >
             <button
               onClick={() => onFocus?.(i)}
-              className="flex items-center gap-2 hover:underline"
+              className="flex items-center gap-2 hover:underline px-1 py-1"
               title="Centrar en el mapa"
             >
               <span
@@ -36,8 +42,8 @@ export default function StopsList({ stops = [], onFocus }: Props) {
               />
               <span className="capitalize">{s.type}</span> — {s.title}
             </button>
-            <div className="text-gray-600">
-              {s.at ? new Date(s.at).toLocaleString() : ""} · mi {Math.round(s.mile)}
+            <div className="text-gray-600 px-1">
+              {s.at ? new Date(s.at).toLocaleString() : ""} · mi {Math.round(s.mile ?? 0)}
             </div>
           </li>
         ))}

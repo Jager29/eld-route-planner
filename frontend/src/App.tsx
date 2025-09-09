@@ -1,62 +1,30 @@
-import { useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { planTrip } from "./lib/api";
 import TripForm from "./components/TripForm";
 import MapView from "./components/MapView";
-import StopsList from "./components/StopsList";
 import LogSheet from "./components/LogSheet";
-import type { PlanTripResp, PlanTripReq, Stop } from "./types";
-import type { LineString } from "geojson";
-
-const DEV_FORCE_OFF10 = true; 
-
-function forceOff10(stops: Stop[], geometry?: LineString): Stop[] {
-  if (!DEV_FORCE_OFF10) return stops;
-  if (!stops || stops.some((s) => s.type === "off10")) return stops;
-  if (!geometry?.coordinates?.length) return stops;
-
-  const coords = geometry.coordinates as [number, number][];
-  const idx = Math.min(Math.max(Math.round(coords.length * 0.66), 0), coords.length - 1);
-  const coord = coords[idx];
-
-  const lastMile = Math.max(0, ...stops.map((s) => Number(s.mile ?? 0)));
-  const approxMile = Math.round(lastMile * 0.8);
-
-  const fake: Stop = {
-    type: "off10",
-    title: "10h Off-Duty",
-    at: new Date().toISOString(),
-    mile: approxMile,
-    coord,
-    duration_min: 600,
-  };
-
-  const copy = [...stops];
-  const dropIdx = copy.findIndex((s) => s.type === "dropoff");
-  if (dropIdx >= 0) copy.splice(dropIdx, 0, fake);
-  else copy.push(fake);
-  return copy;
-}
+import { useState } from "react";
+import type { PlanTripResp, PlanTripReq } from "./types";
+import StopsList from "./components/StopsList";
+import Itinerary from "./components/Itinerary";
 
 export default function App() {
   const [data, setData] = useState<PlanTripResp | null>(null);
+  const [focusIndex, setFocusIndex] = useState<number | null>(null);
 
   const mut = useMutation<PlanTripResp, Error, PlanTripReq>({
     mutationFn: planTrip,
-    onSuccess: (resp) => setData(resp),
+    onSuccess: (resp) => {
+      setData(resp);
+      setFocusIndex(null); 
+    },
   });
-
-  const stopsForUI: Stop[] = useMemo(() => {
-    if (!data) return [];
-    return forceOff10(data.stops ?? [], data.route.geometry);
-  }, [data]);
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 space-y-4">
       <h1 className="text-2xl font-bold">ELD Route Planner</h1>
-
       <TripForm onSubmit={(v) => mut.mutate(v)} />
-      {mut.isPending && <div className="p-2">Calculando…</div>}
+      {mut.isPending && <div className="p-2">Calculating…</div>}
 
       {data && (
         <>
@@ -67,11 +35,21 @@ export default function App() {
 
           <MapView
             geometry={data.route.geometry}
-            stops={stopsForUI}
+            stops={data.stops}
+            focusIndex={focusIndex}
+            onMarkerClick={(i) => setFocusIndex(i)}
           />
 
           <StopsList
-            stops={stopsForUI}
+            stops={data.stops}
+            onFocus={(i) => setFocusIndex(i)}
+          />
+
+          <Itinerary
+            stops={data.stops}
+            distanceMiles={data.route.distance_miles}
+            durationHours={data.route.duration_hours}
+            onFocus={(i) => setFocusIndex(i)}
           />
 
           <LogSheet logsByDay={data.hos.logsByDay} />
