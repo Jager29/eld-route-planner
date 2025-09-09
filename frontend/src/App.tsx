@@ -3,15 +3,20 @@ import { planTrip } from "./lib/api";
 import TripForm from "./components/TripForm";
 import MapView from "./components/MapView";
 import LogSheet from "./components/LogSheet";
+import StopsList from "./components/StopsList";
 import { useState } from "react";
 import type { PlanTripResp, PlanTripReq } from "./types";
 
 export default function App() {
   const [data, setData] = useState<PlanTripResp | null>(null);
+  const [focusIndex, setFocusIndex] = useState<number | null>(null);
 
   const mut = useMutation<PlanTripResp, Error, PlanTripReq>({
     mutationFn: planTrip,
-    onSuccess: (resp) => setData(resp),
+    onSuccess: (resp) => {
+      setData(resp);
+      setFocusIndex(null);
+    },
   });
 
   return (
@@ -22,9 +27,17 @@ export default function App() {
       {data && (
         <>
           <div className="bg-white p-3 rounded-2xl shadow text-sm">
-            Distance: <b>{data.route.distance_miles} mi</b> — Duration: <b>{data.route.duration_hours} h</b>
+            Distance: <b>{data.route.distance_miles} mi</b> — Duration:{" "}
+            <b>{data.route.duration_hours} h</b>
           </div>
-          <MapView geometry={data.route.geometry} />
+
+          <MapView
+            geometry={data.route.geometry}
+            stops={data.stops}
+            focusIndex={focusIndex}
+          />
+
+          <StopsList stops={data.stops} onFocus={(i) => setFocusIndex(i)} />
           <LogSheet logsByDay={data.hos.logsByDay} />
         </>
       )}

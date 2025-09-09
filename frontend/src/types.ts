@@ -1,5 +1,7 @@
 import type { LineString } from "geojson";
 
+export type StopType = "pickup" | "dropoff" | "break" | "off10" | "fuel";
+
 export type DutyStatus = "OffDuty" | "Sleeper" | "Driving" | "OnDuty";
 
 export interface Segment {
@@ -8,6 +10,16 @@ export interface Segment {
   end: string;
   remark?: string | null;
 }
+
+export type Stop = {
+  type: StopType;
+  title: string;
+  at: string | null;
+  mile: number;
+  coord: [number, number];
+  duration_min?: number;
+  note?: string;
+};
 
 export interface DayLog {
   segments: Segment[];
@@ -28,7 +40,7 @@ export interface PlanTripResp {
     duration_hours: number;
     geometry: LineString;
   };
-  stops: Array<{ type: "break" | "fuel" | "overnight" | "pickup" | "dropoff"; index: number; eta?: string }>;
+  stops: Stop[];
   hos: {
     segments: Segment[];
     totals: { driving_h: number; onduty_h: number; off_h: number };
