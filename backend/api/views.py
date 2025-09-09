@@ -1,4 +1,3 @@
-# backend/api/views.py
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
@@ -8,11 +7,10 @@ from typing import Any, Optional, Sequence
 from .routing.ors import geocode, directions, OrsError
 from .hos_engine.scheduler import plan_hos
 from .logs.generator import to_paperlog_payload
-from .utils.geo import coord_along_line 
+from .utils.geo import coord_along_line
 
 MI_PER_M = 0.000621371
 HOUR = 3600
-
 
 def _parse_iso(s: Optional[str]) -> datetime:
     if not s:
@@ -41,14 +39,14 @@ def build_stops(
     total_miles: float,
 ) -> list[dict]:
     """
-    Genera paradas: pickup, breaks ~30min, off-duty 10h, fuel cada 1000mi y dropoff.
+    Genera paradas: pickup, breaks ~30min, off-duty 10h (robusto), fuel cada 1000mi y dropoff.
     """
     coords = (geometry or {}).get("coordinates") or []
     logs_by_day = (hos or {}).get("logsByDay") or {}
     totals = (hos or {}).get("totals") or {}
 
     driving_h = float(totals.get("driving_h") or 0.0)
-    mph = total_miles / driving_h if driving_h > 0 else 50.0  
+    mph = total_miles / driving_h if driving_h > 0 else 50.0 
 
     segs: list[dict] = []
     for day in sorted(logs_by_day.keys()):
@@ -73,17 +71,16 @@ def build_stops(
         status = s.get("status")
         start = _parse_iso(s.get("start"))
         end = _parse_iso(s.get("end"))
-        dur_h = max(0.0, (end - start).total_seconds() / 3600.0)
-        dur_min = int(dur_h * 60)
+        dur_min = round((end - start).total_seconds() / 60)
 
         if status == "Driving":
-            driven_h += dur_h
+            driven_h += dur_min / 60.0
             continue
 
         reason = title = None
-        if status in ("OffDuty", "Sleeper") and dur_min >= 600:          
+        if status in ("OffDuty", "Sleeper") and dur_min >= 595:
             reason, title = "off10", "10h Off-Duty"
-        elif status in ("OffDuty", "OnDuty", "Sleeper") and 25 <= dur_min <= 45:  
+        elif status in ("OffDuty", "OnDuty", "Sleeper") and 25 <= dur_min <= 45:
             reason, title = "break", "30 min Break"
 
         if reason:
@@ -95,7 +92,7 @@ def build_stops(
                 "at": s.get("start"),
                 "mile": mile,
                 "coord": pos,
-                "duration_min": dur_min,
+                "duration_min": int(dur_min),
             })
 
     fuel_mile = 1000.0
@@ -151,7 +148,7 @@ def plan_trip(request):
         d = directions([cur_ll, pk_ll, dp_ll])
         route_m = float(d["distance_m"])
         route_s = float(d["duration_s"])
-        geom    = d["geometry"] 
+        geom    = d["geometry"]  
 
         hos = plan_hos(
             start_time=datetime.now(timezone.utc),
