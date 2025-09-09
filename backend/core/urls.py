@@ -21,4 +21,5 @@ from api import views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path("api/health", views.health),
+    path("api/plan-trip", views.plan_trip, name="plan_trip"),
 ]
