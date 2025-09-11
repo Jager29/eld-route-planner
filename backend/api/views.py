@@ -1,4 +1,4 @@
-# backend/api/views.py
+
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
@@ -15,7 +15,6 @@ MI_PER_M = 0.000621371
 HOUR = 3600
 
 
-# --------------------------- Normalizadores ---------------------------
 
 def _parse_iso(s: Optional[str]) -> datetime:
     """Convierte ISO con o sin 'Z' a datetime UTC."""
@@ -32,19 +31,14 @@ def _to_lnglat(val: Any) -> Sequence[float]:
       - [lat, lng] (detectado por rangos) -> se invierte
       - dict con claves {lng|lon|longitude} y {lat|latitude}
     """
-    # Array / tupla
     if isinstance(val, (list, tuple)) and len(val) >= 2:
         a, b = float(val[0]), float(val[1])
-        # ya es [lng, lat]
         if -180 <= a <= 180 and -90 <= b <= 90:
             return [a, b]
-        # parece [lat, lng] -> swap
         if -90 <= a <= 90 and -180 <= b <= 180:
             return [b, a]
-        # como venga
         return [a, b]
 
-    # Dict
     if isinstance(val, dict):
         lng = val.get("lng") or val.get("lon") or val.get("longitude")
         lat = val.get("lat") or val.get("latitude")
@@ -67,7 +61,6 @@ def _is_valid_ll(ll: Sequence[float]) -> bool:
         return False
 
 
-# --------------------------- Enrutado con fallback ---------------------------
 
 def _merge_routes(r1: Dict, r2: Dict) -> Dict:
     """Suma distancia/duración y concatena geometrías (sin duplicar el vértice de empalme)."""
@@ -92,18 +85,15 @@ def directions_with_fallback(points: List[Sequence[float]]) -> Dict:
     try:
         return directions(points)
     except OrsError:
-        # fallback leg-by-leg si hay ≥3 puntos
         if len(points) >= 3:
             total = None
             for i in range(len(points) - 1):
                 leg = directions(points[i:i + 2])
                 total = leg if total is None else _merge_routes(total, leg)
             return total
-        # si solo hay 2 puntos, re-lanzar
         raise
 
 
-# --------------------------- Stops ---------------------------
 
 def build_stops(geometry, hos, pickup_ll, dropoff_ll, total_miles):
     """
@@ -115,9 +105,8 @@ def build_stops(geometry, hos, pickup_ll, dropoff_ll, total_miles):
     totals = (hos or {}).get("totals", {}) or {}
 
     driving_h = float(totals.get("driving_h") or 0.0)
-    mph = (total_miles / driving_h) if driving_h > 0 else 50.0  # fallback
+    mph = (total_miles / driving_h) if driving_h > 0 else 50.0  
 
-    # Aplanar segmentos ordenados
     segs = []
     for day in sorted(logs_by_day.keys()):
         s = (logs_by_day[day] or {}).get("segments", []) or []
@@ -125,7 +114,6 @@ def build_stops(geometry, hos, pickup_ll, dropoff_ll, total_miles):
 
     out = []
 
-    # Pickup
     out.append({
         "type": "pickup",
         "title": "Pickup",
@@ -135,7 +123,6 @@ def build_stops(geometry, hos, pickup_ll, dropoff_ll, total_miles):
         "duration_min": 60,
     })
 
-    # Reglas sobre segmentos HOS
     driven_h = 0.0
     trip_start = _parse_iso(segs[0]["start"]) if segs else datetime.now(timezone.utc)
 
@@ -151,7 +138,7 @@ def build_stops(geometry, hos, pickup_ll, dropoff_ll, total_miles):
             continue
 
         reason, title = None, None
-        # 10 horas OffDuty/Sleeper
+        # 10 hours OffDuty/Sleeper
         if status in ("OffDuty", "Sleeper") and dur_min >= 600:
             reason, title = "off10", "10h Off-Duty"
         # Break ~30 min (25–45min)
@@ -166,7 +153,6 @@ def build_stops(geometry, hos, pickup_ll, dropoff_ll, total_miles):
                 "mile": mile, "coord": pos, "duration_min": dur_min
             })
 
-    # Fuel cada 1000 millas
     fuel_mile = 1000.0
     while fuel_mile < total_miles:
         h_at = fuel_mile / mph
@@ -191,7 +177,6 @@ def build_stops(geometry, hos, pickup_ll, dropoff_ll, total_miles):
     return out
 
 
-# --------------------------- Views ---------------------------
 
 @api_view(["GET"])
 def health(request):
@@ -213,7 +198,6 @@ def plan_trip(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Geocodificar y normalizar
         try:
             cur_ll = _to_lnglat(geocode(cur))
             pk_ll = _to_lnglat(geocode(pickup))
@@ -221,19 +205,16 @@ def plan_trip(request):
         except ValueError as ge:
             return Response({"error": f"Geocode inválido: {ge}"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Validar coordenadas (rango y evitar 0,0)
         for name, ll in (("current", cur_ll), ("pickup", pk_ll), ("dropoff", dp_ll)):
             if not _is_valid_ll(ll):
                 return Response({"error": f"Bad geocode for {name}: {list(ll)}"},
                                 status=status.HTTP_400_BAD_REQUEST)
 
-        # Ruta ORS (con fallback por tramos si falla el multi-waypoint)
         d = directions_with_fallback([cur_ll, pk_ll, dp_ll])
         route_m = float(d["distance_m"])
         route_s = float(d["duration_s"])
-        geom = d["geometry"]  # GeoJSON LineString
+        geom = d["geometry"]  
 
-        # HOS
         hos = plan_hos(
             start_time=datetime.now(timezone.utc),
             route_distance_m=route_m,
@@ -244,14 +225,12 @@ def plan_trip(request):
             include_dropoff=True,
         )
 
-        # Resumen de ruta
         route = {
             "distance_miles": round(route_m * MI_PER_M, 2),
             "duration_hours": round(route_s / HOUR, 2),
             "geometry": geom,
         }
 
-        # Paradas
         stops = build_stops(
             route["geometry"],
             hos,
@@ -271,7 +250,6 @@ def plan_trip(request):
         })
 
     except OrsError as e:
-        # 502 cuando ORS rechaza (antes de aplicar fallback) o un leg del fallback falla
         return Response({"error": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
     except Exception as e:
         import traceback
