@@ -7,6 +7,7 @@ import { useState } from "react";
 import type { PlanTripResp, PlanTripReq } from "./types";
 import StopsList from "./components/StopsList";
 import Itinerary from "./components/Itinerary";
+import HosSummary from "./components/HosSummary";
 
 export default function App() {
   const [data, setData] = useState<PlanTripResp | null>(null);
@@ -52,6 +53,7 @@ export default function App() {
             onFocus={(i) => setFocusIndex(i)}
           />
 
+          <HosSummary logsByDay={data.hos.logsByDay} />
           <LogSheet logsByDay={data.hos.logsByDay} />
         </>
       )}
