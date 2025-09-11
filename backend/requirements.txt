@@ -7,4 +7,5 @@ requests>=2.32,<3
 pytest==8.2.2
 pytest-django==4.8.0
 whitenoise
+python-dotenv==1.0.1
 
