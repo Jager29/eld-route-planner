@@ -15,6 +15,5 @@ Small demo (React + Vite + Django/DRF) that plans a route and shows HOS stops.
 cd backend
 python -m venv .venv && . .venv/Scripts/activate  # Win
 pip install -r requirements.txt
-export ORS_API_KEY=xxxxx   # or set in .env
 python manage.py migrate
 python manage.py runserver 0.0.0.0:8000
